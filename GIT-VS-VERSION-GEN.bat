@@ -147,6 +147,8 @@ SET strGIT_MICRO_TAG=
 SET strGIT_MICRO_HASH=
 SET numGIT_MICRO_COMMITS=0
 
+SET strGIT_COPYRIGHT=
+
 :: Digital Version: Major, Minor, Mirco, Revision
 SET numMAJOR_NUMBER=0
 SET numMINOR_NUMBER=0
@@ -202,14 +204,16 @@ IF %line% EQU 3 SET "strGIT_HEAD_NAME=%*"
 IF %line% EQU 4 SET "strGIT_BRANCH_NAME=%*"
 IF %line% EQU 5 SET "numGIT_BRANCH_COMMITS=%*"
 
-IF %line% EQU 6 SET "strGIT_MAJOR_TAG=%*"
-IF %line% EQU 7 SET "numGIT_MAJOR_COMMITS=%*"
+IF %line% EQU 6 SET "strGIT_COPYRIGHT=%*"
 
-IF %line% EQU 8 SET "strGIT_MINOR_TAG=%*"
-IF %line% EQU 9 SET "numGIT_MINOR_COMMITS=%*"
+IF %line% EQU 7 SET "strGIT_MAJOR_TAG=%*"
+IF %line% EQU 8 SET "numGIT_MAJOR_COMMITS=%*"
 
-IF %line% EQU 10 SET "strGIT_MICRO_TAG=%*"
-IF %line% EQU 11 SET "numGIT_MICRO_COMMITS=%*"
+IF %line% EQU 9 SET "strGIT_MINOR_TAG=%*"
+IF %line% EQU 10 SET "numGIT_MINOR_COMMITS=%*"
+
+IF %line% EQU 11 SET "strGIT_MICRO_TAG=%*"
+IF %line% EQU 12 SET "numGIT_MICRO_COMMITS=%*"
 GOTO :EOF
 
 :: --------------------
@@ -232,6 +236,15 @@ FOR /F "tokens=*" %%A IN ('"git rev-parse --verify --abbrev-ref HEAD"') DO (
 )
 FOR /F "tokens=*" %%A IN ('"git rev-list --count HEAD"') DO (
   SET "numGIT_BRANCH_COMMITS=%%A"
+)
+FOR /F "tokens=*" %%A IN ('"git rev-list --max-parents=0 HEAD"') DO (
+  FOR /F "tokens=*" %%B IN ('"git show -s --format=%%ci %%A"') DO (
+    SET "strGIT_COPYRIGHT=%%B"
+  )
+)
+SET "strGIT_COPYRIGHT=%strGIT_COPYRIGHT:~0,4%"
+IF "%strGIT_COPYRIGHT%" NEQ "%strGIT_HEAD_DATE:~0,4%" (
+  SET "strGIT_COPYRIGHT=%strGIT_COPYRIGHT%-%strGIT_HEAD_DATE:~0,4%"
 )
 GOTO :EOF
 
@@ -268,6 +281,8 @@ IF "%CACHE_FILE%" NEQ "" (
 
     ECHO %strGIT_BRANCH_NAME%
     ECHO %numGIT_BRANCH_COMMITS%
+
+    ECHO %strGIT_COPYRIGHT%
 
     ECHO %strGIT_MAJOR_TAG%
     ECHO %numGIT_MAJOR_COMMITS%
@@ -494,6 +509,8 @@ ECHO #define GIT_HEAD_HASH        "%strGIT_HEAD_HASH%"
 ECHO #define GIT_HEAD_DATE        "%strGIT_HEAD_DATE%"
 ECHO #define GIT_HEAD_NAME        "%strGIT_HEAD_NAME%"
 ECHO.
+ECHO #define GIT_COPYRIGHT        "%strGIT_COPYRIGHT%"
+ECHO.
 ECHO #define GIT_MAJOR_TAG        "%strGIT_MAJOR_TAG%"
 ECHO #define GIT_MAJOR_COMMITS    %numGIT_MAJOR_COMMITS%
 ECHO #define GIT_MINOR_TAG        "%strGIT_MINOR_TAG%"
@@ -536,6 +553,8 @@ IF %fVERBOSE% EQU 1 (
   ECHO #define GIT_HEAD_HASH        "%strGIT_HEAD_HASH%"
   ECHO #define GIT_HEAD_DATE        "%strGIT_HEAD_DATE%"
   ECHO #define GIT_HEAD_NAME        "%strGIT_HEAD_NAME%"
+  ECHO.
+  ECHO #define GIT_COPYRIGHT        "%strGIT_COPYRIGHT%"
   ECHO.
   ECHO #define GIT_MAJOR_TAG        "%strGIT_MAJOR_TAG%"
   ECHO #define GIT_MAJOR_COMMITS    %numGIT_MAJOR_COMMITS%
