@@ -96,7 +96,7 @@ ECHO.
 ECHO  Example pre-build event:
 ECHO  CALL GIT-VS-VERSION-GEN.bat "$(SolutionDir)" "$(SolutionDir)src\gitversion.h"
 ECHO.
-GOTO :END
+GOTO :FINISH
 
 
 :: ===================
@@ -107,17 +107,17 @@ ECHO.
 CALL :INIT_VARS
 CALL :GET_VERSION_STRING
 IF %fGIT_AVAILABLE% EQU 1 (
-  IF %fLEAVE_NOW% EQU 1 GOTO :END
+  IF %fLEAVE_NOW% EQU 1 GOTO :FINISH
   IF "%CACHE_FILE%" NEQ "" (
     CALL :CHECK_CACHE
   )
 )
-IF %fLEAVE_NOW% EQU 1 GOTO :END
+IF %fLEAVE_NOW% EQU 1 GOTO :FINISH
 CALL :PARSE_VERSION_STRING
 CALL :WRITE_CACHE
 CALL :PREP_OUT
 CALL :WRITE_OUT
-GOTO :END
+GOTO :FINISH
 
 :: ====================
 :: FUNCTIONS
@@ -173,14 +173,16 @@ GOTO :EOF
 :: --------------------
 :: Precedence is Git, CACHE_FILE, then DEFAULT_VERSION.
 :: Check if git is available by testing git describe.
-CALL git describe>NUL 2>&1
+CALL git describe --always --abbrev=%HASH_ABBREV% >NUL 2>&1
 IF NOT ERRORLEVEL 1 (
   SET "fGIT_AVAILABLE=1"
   REM Parse git version string
+  ECHO Generating version information using git.
   CALL :GET_GIT_VERSION_STRING
 ) ELSE (
   REM Use the CACHE_FILE if it exists.
   IF EXIST "%CACHE_FILE%" (
+    ECHO Generating version information using cache file.
     SET "line=0"
     FOR /F "tokens=*" %%A IN (%CACHE_FILE%) DO (
       CALL :READ_CACHE %%A
@@ -188,6 +190,7 @@ IF NOT ERRORLEVEL 1 (
     SET line=
   ) ELSE (
     REM Default to the DEFAULT_VERSION
+    ECHO Generating version information using default values.
     SET "strGIT_HEAD_DESCRIBE=%DEFAULT_VERSION%"
   )
 )
@@ -219,9 +222,6 @@ GOTO :EOF
 :: --------------------
 :GET_GIT_VERSION_STRING
 :: --------------------
-FOR /F "tokens=*" %%A IN ('"git describe %USE_UNANNOTATED_TAGS% --long --abbrev=%HASH_ABBREV% --dirty=-dirty"') DO (
-  SET "strGIT_HEAD_DESCRIBE=%%A"
-)
 FOR /F "tokens=*" %%A IN ('"git rev-parse --verify --short=%HASH_ABBREV% HEAD"') DO (
   SET "strGIT_HEAD_HASH=g%%A"
 )
@@ -245,6 +245,18 @@ FOR /F "tokens=*" %%A IN ('"git rev-list --max-parents=0 HEAD"') DO (
 SET "strGIT_COPYRIGHT=%strGIT_COPYRIGHT:~0,4%"
 IF "%strGIT_COPYRIGHT%" NEQ "%strGIT_HEAD_DATE:~0,4%" (
   SET "strGIT_COPYRIGHT=%strGIT_COPYRIGHT%-%strGIT_HEAD_DATE:~0,4%"
+)
+CALL git describe %USE_UNANNOTATED_TAGS% --long --abbrev=%HASH_ABBREV% --dirty=-dirty >NUL 2>&1
+IF NOT ERRORLEVEL 1 (
+  FOR /F "tokens=*" %%A IN ('"git describe %USE_UNANNOTATED_TAGS% --long --abbrev=%HASH_ABBREV% --dirty=-dirty"') DO (
+    SET "strGIT_HEAD_DESCRIBE=%%A"
+  )
+) ELSE (
+  ECHO No tags have been found in the repository, defaulting to version v0.0.0
+  ECHO Create a tag to begin generating version information from repository.
+  FOR /F "tokens=*" %%A IN ('"git describe --always --abbrev=%HASH_ABBREV% --dirty=-dirty"') DO (
+    SET "strGIT_HEAD_DESCRIBE=v0.0.0-%numGIT_BRANCH_COMMITS%-g%%A"
+  )
 )
 GOTO :EOF
 
@@ -275,23 +287,23 @@ GOTO :EOF
 :: --------------------
 IF "%CACHE_FILE%" NEQ "" (
   (
-    ECHO %strGIT_HEAD_DESCRIBE%
-    ECHO %strGIT_HEAD_DATE%
-    ECHO %strGIT_HEAD_NAME%
+    ECHO.%strGIT_HEAD_DESCRIBE%
+    ECHO.%strGIT_HEAD_DATE%
+    ECHO.%strGIT_HEAD_NAME%
 
-    ECHO %strGIT_BRANCH_NAME%
-    ECHO %numGIT_BRANCH_COMMITS%
+    ECHO.%strGIT_BRANCH_NAME%
+    ECHO.%numGIT_BRANCH_COMMITS%
 
-    ECHO %strGIT_COPYRIGHT%
+    ECHO.%strGIT_COPYRIGHT%
 
-    ECHO %strGIT_MAJOR_TAG%
-    ECHO %numGIT_MAJOR_COMMITS%
+    ECHO.%strGIT_MAJOR_TAG%
+    ECHO.%numGIT_MAJOR_COMMITS%
 
-    ECHO %strGIT_MINOR_TAG%
-    ECHO %numGIT_MINOR_COMMITS%
+    ECHO.%strGIT_MINOR_TAG%
+    ECHO.%numGIT_MINOR_COMMITS%
 
-    ECHO %strGIT_MICRO_TAG%
-    ECHO %numGIT_MICRO_COMMITS%
+    ECHO.%strGIT_MICRO_TAG%
+    ECHO.%numGIT_MICRO_COMMITS%
   ) > "%CACHE_FILE%"
 )
 GOTO :EOF
@@ -381,7 +393,7 @@ EXIT /B
 :: release stream tag.
 SETLOCAL ENABLEDELAYEDEXPANSION
 SET tag=
-FOR /F "tokens=* usebackq" %%A IN (`"git for-each-ref --count=1 --format=%%(refname:short) --sort=taggerdate refs/tags/!%~1!"`) DO SET "tag=%%A"
+FOR /F "tokens=* usebackq" %%A IN (`"git for-each-ref --count=1 --format=%%(refname:short) --sort=taggerdate refs/tags/!%~1!"`) DO ( SET "tag=%%A" )
 IF "%tag%" NEQ "" (
   FOR /F "tokens=* usebackq" %%A IN (`"git describe %USE_UNANNOTATED_TAGS% --long --abbrev=%HASH_ABBREV% --match %tag%"`) DO ( SET "describe=%%A" )
   CALL :strip describe hash
@@ -534,7 +546,7 @@ ECHO #define GIT_COMMENT_STRING   "%strCOMMENT%"
 :CON_OUT
 :: --------------------
 IF %fQUIET% EQU 1 GOTO :EOF
-ECHO // GIT-VS-VERSION-GEN.bat auto generated resource header.
+ECHO GIT-VS-VERSION-GEN.bat auto generated resource header.
 IF %fVERBOSE% EQU 1 (
   ECHO #define GIT_VERSION_MAJOR    %numMAJOR_NUMBER%
   ECHO #define GIT_VERSION_MINOR    %numMINOR_NUMBER%
@@ -588,7 +600,7 @@ PUSHD %git-vs-version-test-dir%
 CALL git init >NUL 2>&1
 IF ERRORLEVEL 1 (
   ECHO Test requires git.
-  GOTO :END
+  GOTO :FINISH
 )
 
 :: Generate the test patches and tags
@@ -598,12 +610,12 @@ FOR /L %%A IN (0,1,1) DO (
   SET test_ver=%test_stage%%%A
   IF "%test_stage%" EQU "" SET test_ver=
   CALL git commit --allow-empty -m "Commit v1.0.0%%test_ver%%" >NUL
-  IF ERRORLEVEL 1 GOTO :END
+  IF ERRORLEVEL 1 GOTO :FINISH
   CALL git tag -a v1.0.0%%test_ver%% -m "Test v1.0.0%%test_ver%%"
-  IF ERRORLEVEL 1 GOTO :END
+  IF ERRORLEVEL 1 GOTO :FINISH
   FOR /L %%B IN (0,1,2) DO (
     CALL git commit --allow-empty -m "Work on v1.0.0%%test_ver%%" >NUL
-    IF ERRORLEVEL 1 GOTO :END
+    IF ERRORLEVEL 1 GOTO :FINISH
   )
   IF "%test_stage%" EQU "" GOTO :TEST_MAINT
 )
@@ -705,5 +717,6 @@ SET TEST_OUT_STRING=%TEST_OUT_STRING%, %fPRERELEASE%, %fPRIVATE%, %fPATCHED%, %s
 GOTO :EOF
 
 :: --------------------
-:END
+:FINISH
 :: --------------------
+EXIT /B
