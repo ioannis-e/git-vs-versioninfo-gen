@@ -136,6 +136,7 @@ SET strGIT_HEAD_DATE=
 SET strGIT_HEAD_NAME=
 SET strGIT_BRANCH_NAME=
 SET numGIT_BRANCH_COMMITS=0
+SET numGIT_BRANCH_DIRTY=0
 
 SET strGIT_MAJOR_TAG=
 SET strGIT_MAJOR_HASH=
@@ -320,6 +321,7 @@ CALL :strip str tmp
 IF "%tmp%" EQU "dirty" (
   SET "fPATCHED=1"
   SET "fPRIVATE=1"
+  SET "numGIT_BRANCH_DIRTY=1"
   CALL :strip str tmp
 )
 
@@ -343,7 +345,7 @@ FOR /F "tokens=1 delims=-" %%A IN ("%str%") DO (
 )
 CALL SET "str=%%str:%strGIT_HEAD_TAG_VERSION%=%%"
 
-:: The min vetrsion is X.Y.Z and the max is X.Y.Z.Stage#.Commits.SHA.dirty
+:: The min version is X.Y.Z and the max is X.Y.Z.Stage#.Commits.SHA.dirty
 :: strTMP_STAGE_PART is a holder for anything past 'X.Y.Z.'.
 FOR /F "tokens=1,2,3,4 delims=." %%A IN ("%strGIT_HEAD_TAG_VERSION%") DO (
   IF [%%A] NEQ [] SET "numMAJOR_NUMBER=%%A"
@@ -532,6 +534,7 @@ ECHO #define GIT_MICRO_COMMITS    %numGIT_MICRO_COMMITS%
 ECHO.
 ECHO #define GIT_BRANCH_NAME      "%strGIT_BRANCH_NAME%"
 ECHO #define GIT_BRANCH_COMMITS   %numGIT_BRANCH_COMMITS%
+ECHO #define GIT_BRANCH_DIRTY     %numGIT_BRANCH_DIRTY%
 ECHO.
 ECHO #define GIT_PATCHED_FLAG     %fPATCHED%
 ECHO #define GIT_PRERELEASE_FLAG  %fPRERELEASE%
@@ -577,6 +580,7 @@ IF %fVERBOSE% EQU 1 (
   ECHO.
   ECHO #define GIT_BRANCH_NAME      "%strGIT_BRANCH_NAME%"
   ECHO #define GIT_BRANCH_COMMITS   %numGIT_BRANCH_COMMITS%
+  ECHO #define GIT_BRANCH_DIRTY     %numGIT_BRANCH_DIRTY%
   ECHO.
   ECHO #define GIT_PATCHED_FLAG     %fPATCHED%
   ECHO #define GIT_PRERELEASE_FLAG  %fPRERELEASE%
